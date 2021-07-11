@@ -1,131 +1,65 @@
 const router = require('express').Router();
-const sequelize = require('../config/connection');
-const { Post, User } = require('../models');
-const withAuth = require('../utils/auth');
+const { User } = require('../../models');
 
-router.get('/', withAuth, (req, res) => {
-  console.log(req.session.userId)
-    Post.findAll({
-      where: {
-        user_id: req.session.userId
-      },
-      attributes: [
-        'id',
-        'title',
-        'created_at',
-        'contents'
-      ],
-      include: [
-        {
-          model: User,
-          attributes: ['username']
-        }
-      ]
-    })
-      .then(postData => {
-        const posts = postData.map(post => post.get({ plain: true }));
-        res.render('dashboard', { posts, loggedIn: true });
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
-  });
+router.post('/', async (req, res) => {
+  try {
+    const newUser = await User.create({
+      username: req.body.username,
+      password: req.body.password,
+    });
 
-  router.get('/edit/:id', withAuth, (req, res) => {
-    Post.findOne({
-      where: {
-        id: req.params.id
-      },
-      attributes: [
-        'id',
-        'title',
-        'created_at',
-        'contents'
-      ]
-    })
-      .then(postData => {
-        if (!postData) {
-          res.status(404).json({ message: 'Post cannot be found' });
-          return;
-        }
-  
-        const post = postData.get({ plain: true });
+    req.session.save(() => {
+      req.session.userId = newUser.id;
+      req.session.username = newUser.username;
+      req.session.loggedIn = true;
 
-        res.render('editPost', {
-            post,
-            loggedIn: true
-            });
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
+      res.json(newUser);
+    });
+  } catch (err) {
+    res.status(500).json(err);
+  }
 });
 
-router.get('/create/', withAuth, (req, res) => {
-    Post.findAll({
+router.post('/login', async (req, res) => {
+  try {
+    const user = await User.findOne({
       where: {
-        user_id: req.session.userId
+        username: req.body.username,
       },
-      attributes: [
-        'id',
-        'title',
-        'created_at',
-        'contents'
-      ],
-      include: [
-        {
-          model: User,
-          attributes: ['username']
-        }
-      ]
-    })
-      .then(postData => {
-        const posts = postData.map(post => post.get({ plain: true }));
-        res.render('createPost', { posts, loggedIn: true });
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
-  });
+    });
 
+    if (!user) {
+      res.status(400).json({ message: 'No user account found!' });
+      return;
+    }
 
-  router.get('/edit/:id', withAuth, (req, res) => {
-    Post.findOne({
-      where: {
-        id: req.params.id
-      },
-      attributes: [
-        'id',
-        'title',
-        'created_at',
-        'contents'
-      ]
-    })
-      .then(PostData => {
-        if (!PostData) {
-          res.status(404).json({ message: 'No post found' });
-          return;
-        }
-  
-        const post = PostData.get({ plain: true });
+    const validPassword = user.checkPassword(req.body.password);
 
-        res.render('editPost', {
-            post,
-            loggedIn: true
-            });
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
+    if (!validPassword) {
+      res.status(400).json({ message: 'No user account found!' });
+      return;
+    }
+
+    req.session.save(() => {
+      req.session.userId = user.id;
+      req.session.username = user.username;
+      req.session.loggedIn = true;
+
+      res.json({ user, message: 'You are now logged in!' });
+    });
+  } catch (err) {
+    res.status(400).json({ message: 'No user account found!' });
+  }
 });
 
-
-
-
-
+router.post('/logout', (req, res) => {
+  if (req.session.loggedIn) {
+    req.session.destroy(() => {
+      res.status(204).end();
+    });
+  } else {
+    res.status(404).end();
+  }
+});
 
 module.exports = router;
