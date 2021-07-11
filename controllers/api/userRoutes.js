@@ -1,115 +1,73 @@
 const router = require('express').Router();
-const { User, Post } = require('../../models');
-
-
-router.get('/', (req, res) => {
-
-    User.findAll({
-        attributes: { exclude: ['password'] }
-    })
-        .then(userData => res.json(userData))
-        .catch(err => {
-            console.log(err);
-            res.status(500).json(err);
-        });
-});
-
-
-router.get('/:id', (req, res) => {
-    User.findOne({
-        attributes: { exclude: ['password'] },
-        where: {
-            id: req.params.id
-        },
-        include: [
-            {
-                model: Post,
-                attributes: ['id', 'title', 'post_content', 'created_at']
-            }
-        ]
-
-    })
-        .then(userData => {
-            if (!userData) {
-                res.status(404).json({ message: 'User cannot be found' });
-                return;
-            }
-            res.json(userData);
-        })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json(err);
-        });
-});
-
+const { User } = require('../../models');
 
 router.post('/signup', async (req, res) => {
     try {
-        
-    
-    const newUser = await User.create({
-        username: req.body.username,
-        password: req.body.password,
-    })
-        
-            req.session.save(() => {
-                req.session.userId = newUser.id;
-                req.session.username = newUser.username;
-                req.session.loggedIn = true;
 
-                res.json(newUser);
-            });
-        }
-    catch (err) {
-        console.log(err)
-        res.json(err)
+        const userData = await User.create({
+            username: req.body.username,
+            password: req.body.password,
+        });
+
+
+        req.session.save(() => {
+            req.session.loggedIn = true;
+
+            res.status(200).json(userData);
+        });
+    } catch (err) {
+        console.log(err);
+        res.status(500).json(err)
+
     }
+
 });
 
+router.post('/login', async (req, res) => {
 
+    try{
 
-  router.post('/login', (req, res) => {
-    User.findOne({
-      where: {
-        username: req.body.username
-      }
-    }).then(userData => {
-      if (!userData) {
-        res.status(400).json({ message: 'Could not find username' });
-        return;
-      }
+        const userData = await User.findOne({
+            where: {
+                username: req.body.username,
+            },
+        });
 
-      const validPassword = userData.checkPassword(req.body.password);
+        if (!userData){
+            res.status(400).json({message: 'Incorrect username or password'});
+            return;
+        }
 
-      if (!validPassword) {
-        res.status(400).json({ message: 'Password is incorrect' });
-        return;
-      }
+        const validUser = await userData.checkPassword(req.body.password);
 
-      req.session.save(() => {
-        // declare session variables
-        req.session.user_id = userData.id;
-        req.session.username = userData.username;
-        req.session.loggedIn = true;
+        if (!validUser){
+            res.status(400).json({message: 'Incorrect username or password'});
+            return;
+        }
 
-        res.json({ user: userData, message: 'Login Sucessful' });
-      });
-    });
-  });
+        req.session.save(() => {
 
+            req.session.loggedIn = true;
 
+            res.status(200).json({ user: userData, message: 'You are now logged in!' });
+          });
+        } catch (err) {
+          console.log(err);
+          res.status(500).json(err);
+     }
 
+});
 
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+
     if (req.session.loggedIn) {
         req.session.destroy(() => {
             res.status(204).end();
         });
-    }
-    else {
+    } else {
         res.status(404).end();
+
     }
 });
-
 
 module.exports = router;

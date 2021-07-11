@@ -34,7 +34,7 @@ router.get('/', (req, res) => {
     })
       .then(postData => {
         if (!postData) {
-          res.status(404).json({ message: 'Post Cannot be found' });
+          res.status(404).json({ message: 'Post not found' });
           return;
         }
         res.json(postData);
@@ -76,7 +76,7 @@ router.put('/:id', withAuth, (req, res) => {
       })
       .then(postData => {
         if (!postData) {
-          res.status(404).json({ message: 'Post cannot be found' });
+          res.status(404).json({ message: 'Post not found' });
           return;
         }
         res.json(postData);
@@ -95,7 +95,7 @@ router.put('/:id', withAuth, (req, res) => {
     })
       .then(postData => {
         if (!postData) {
-          res.status(404).json({ message: 'Post cannot be found' });
+          res.status(404).json({ message: 'Post not found' });
           return;
         }
         res.json(postData);
@@ -105,5 +105,3 @@ router.put('/:id', withAuth, (req, res) => {
         res.status(500).json(err);
       });
   });
-
-  module.exports = router;
