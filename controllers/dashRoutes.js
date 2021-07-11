@@ -1,124 +1,49 @@
 const router = require('express').Router();
-const sequelize = require('../config/connection');
-const { Post, User } = require('../models');
+const { Post } = require('../models/');
 const withAuth = require('../utils/auth');
 
-router.get('/', withAuth, (req, res) => {
-  console.log(req.session.userId)
-    Post.findAll({
+router.get('/', withAuth, async (req, res) => {
+  try {
+    const postData = await Post.findAll({
       where: {
-        user_id: req.session.userId
+        userId: req.session.userId,
       },
-      attributes: [
-        'id',
-        'title',
-        'created_at',
-        'contents'
-      ],
-      include: [
-        {
-          model: User,
-          attributes: ['username']
-        }
-      ]
-    })
-      .then(postData => {
-        const posts = postData.map(post => post.get({ plain: true }));
-        res.render('dashboard', { posts, loggedIn: true });
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
-  });
+    });
 
-  router.get('/edit/:id', withAuth, (req, res) => {
-    Post.findOne({
-      where: {
-        id: req.params.id
-      },
-      attributes: [
-        'id',
-        'title',
-        'created_at',
-        'contents'
-      ]
-    })
-      .then(postData => {
-        if (!postData) {
-          res.status(404).json({ message: 'Post cannot be found' });
-          return;
-        }
-  
-        const post = postData.get({ plain: true });
+    const posts = postData.map((post) => post.get({ plain: true }));
 
-        res.render('editPost', {
-            post,
-            loggedIn: true
-            });
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
+    res.render('all-posts-admin', {
+      layout: 'dashboard',
+      posts,
+    });
+  } catch (err) {
+    res.redirect('login');
+  }
 });
 
-router.get('/create/', withAuth, (req, res) => {
-    Post.findAll({
-      where: {
-        user_id: req.session.userId
-      },
-      attributes: [
-        'id',
-        'title',
-        'created_at',
-        'contents'
-      ],
-      include: [
-        {
-          model: User,
-          attributes: ['username']
-        }
-      ]
-    })
-      .then(postData => {
-        const posts = postData.map(post => post.get({ plain: true }));
-        res.render('createPost', { posts, loggedIn: true });
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
+router.get('/new', withAuth, (req, res) => {
+  res.render('new-post', {
+    layout: 'dashboard',
   });
-
-
-  router.get('/edit/:id', withAuth, (req, res) => {
-    Post.findOne({
-      where: {
-        id: req.params.id
-      },
-      attributes: [
-        'id',
-        'title',
-        'created_at',
-        'contents'
-      ]
-    })
-      .then(PostData => {
-        if (!PostData) {
-          res.status(404).json({ message: 'No post found' });
-          return;
-        }
-  
-        const post = PostData.get({ plain: true });
-
-        res.render('editPost', {
-            post,
-            loggedIn: true
-            });
-      })
-      .catch(err => {
-        console.log(err);
-        res.status(500).json(err);
-      });
 });
+
+router.get('/edit/:id', withAuth, async (req, res) => {
+  try {
+    const postData = await Post.findByPk(req.params.id);
+
+    if (postData) {
+      const post = postData.get({ plain: true });
+
+      res.render('edit-post', {
+        layout: 'dashboard',
+        post,
+      });
+    } else {
+      res.status(404).end();
+    }
+  } catch (err) {
+    res.redirect('login');
+  }
+});
+
+module.exports = router;
