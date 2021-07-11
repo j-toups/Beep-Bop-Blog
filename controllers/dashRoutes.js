@@ -1,49 +1,131 @@
 const router = require('express').Router();
-const { Post } = require('../models/');
+const sequelize = require('../config/connection');
+const { Post, User } = require('../models');
 const withAuth = require('../utils/auth');
 
-router.get('/', withAuth, async (req, res) => {
-  try {
-    const postData = await Post.findAll({
+router.get('/', withAuth, (req, res) => {
+  console.log(req.session.userId)
+    Post.findAll({
       where: {
-        userId: req.session.userId,
+        user_id: req.session.userId
       },
-    });
-
-    const posts = postData.map((post) => post.get({ plain: true }));
-
-    res.render('all-posts-admin', {
-      layout: 'dashboard',
-      posts,
-    });
-  } catch (err) {
-    res.redirect('login');
-  }
-});
-
-router.get('/new', withAuth, (req, res) => {
-  res.render('new-post', {
-    layout: 'dashboard',
-  });
-});
-
-router.get('/edit/:id', withAuth, async (req, res) => {
-  try {
-    const postData = await Post.findByPk(req.params.id);
-
-    if (postData) {
-      const post = postData.get({ plain: true });
-
-      res.render('edit-post', {
-        layout: 'dashboard',
-        post,
+      attributes: [
+        'id',
+        'title',
+        'created_at',
+        'contents'
+      ],
+      include: [
+        {
+          model: User,
+          attributes: ['username']
+        }
+      ]
+    })
+      .then(postData => {
+        const posts = postData.map(post => post.get({ plain: true }));
+        res.render('dashboard', { posts, loggedIn: true });
+      })
+      .catch(err => {
+        console.log(err);
+        res.status(500).json(err);
       });
-    } else {
-      res.status(404).end();
-    }
-  } catch (err) {
-    res.redirect('login');
-  }
+  });
+
+  router.get('/edit/:id', withAuth, (req, res) => {
+    Post.findOne({
+      where: {
+        id: req.params.id
+      },
+      attributes: [
+        'id',
+        'title',
+        'created_at',
+        'contents'
+      ]
+    })
+      .then(postData => {
+        if (!postData) {
+          res.status(404).json({ message: 'Post cannot be found' });
+          return;
+        }
+  
+        const post = postData.get({ plain: true });
+
+        res.render('editPost', {
+            post,
+            loggedIn: true
+            });
+      })
+      .catch(err => {
+        console.log(err);
+        res.status(500).json(err);
+      });
 });
+
+router.get('/create/', withAuth, (req, res) => {
+    Post.findAll({
+      where: {
+        user_id: req.session.userId
+      },
+      attributes: [
+        'id',
+        'title',
+        'created_at',
+        'contents'
+      ],
+      include: [
+        {
+          model: User,
+          attributes: ['username']
+        }
+      ]
+    })
+      .then(postData => {
+        const posts = postData.map(post => post.get({ plain: true }));
+        res.render('createPost', { posts, loggedIn: true });
+      })
+      .catch(err => {
+        console.log(err);
+        res.status(500).json(err);
+      });
+  });
+
+
+  router.get('/edit/:id', withAuth, (req, res) => {
+    Post.findOne({
+      where: {
+        id: req.params.id
+      },
+      attributes: [
+        'id',
+        'title',
+        'created_at',
+        'contents'
+      ]
+    })
+      .then(PostData => {
+        if (!PostData) {
+          res.status(404).json({ message: 'No post found' });
+          return;
+        }
+  
+        const post = PostData.get({ plain: true });
+
+        res.render('editPost', {
+            post,
+            loggedIn: true
+            });
+      })
+      .catch(err => {
+        console.log(err);
+        res.status(500).json(err);
+      });
+});
+
+
+
+
+
 
 module.exports = router;
